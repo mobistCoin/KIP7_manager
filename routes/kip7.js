@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const util = require("util");
 const fs = require('fs');
-const mitx = require('../libs/kip7');
+const mitx = require('../libs/klaytn');
 
 /* JSON data read from JSON File */
 const jsonFile = fs.readFileSync('./platform.json', 'utf8');
@@ -62,5 +62,19 @@ router.get('/:eoa', async function(req, res, next) {
   // account pug 파일을 호출하여 출력한다.
   res.render('kip7', {account: req.params.eoa, balance: balance, history: ctbe.result})
 });
+
+router.get('/:eoa/balance', async function (req, res) {
+  // EOA check pattern and length
+  // start with '0x' and 40 size string.
+  let eoaMatch = RegExp("^0x[0-9a-z]{41}")
+  if (eoaMatch.test(req.params.eoa)) {
+    res.send("Error MATCH")
+  }
+
+  const Info = mitx.TokenBalance(req.params.eoa);
+  let info_json = await Info;
+
+  res.send(info_json.result[0].amount);
+})
 
 module.exports = router;
