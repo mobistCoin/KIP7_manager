@@ -3,6 +3,7 @@ const router = express.Router();
 const util = require("util");
 const fs = require('fs');
 const mitx = require('../libs/klaytn');
+const urlExistSync = require("url-exist-sync");
 
 /* JSON data read from JSON File */
 const jsonFile = fs.readFileSync('./platform.json', 'utf8');
@@ -20,8 +21,9 @@ router.get('/', function(req, res, next) {
 });
 
 router.get('/:eoa', async function(req, res, next) {
-  // EOA check pattern and length
-  // start with '0x' and 40 size string.
+  // 주소 형식 체크
+  // '0x'로 시작하는지 확인하고
+  // 40자 길이의 숫자와 문자로 이루어진 주소값 확인
   let eoaMatch = RegExp("^0x[0-9a-z]{41}")
   if (eoaMatch.test(req.params.eoa)) {
     res.send("Error MATCH")
@@ -63,31 +65,68 @@ router.get('/:eoa', async function(req, res, next) {
   res.render('kip7', {account: req.params.eoa, balance: balance, history: ctbe.result})
 });
 
-router.get('/:eoa/transfers', async function (req, res) {
-  // 주어진 주소값이 smart contract 의 값인지 확인.
-  if (req.params.eoa !== contract) {
-    res.send("{\"status\": \"fail\"}")
+/**
+ * 계좌의 잔액 확인용
+ */
+router.get('/:eoa/balance', async function (req, res) {
+  let result = new Object();
+  let balance = 0;
+
+  // 주소 형식 체크
+  // '0x'로 시작하는지 확인하고
+  // 40자 길이의 숫자와 문자로 이루어진 주소값 확인
+  let eoaMatch = RegExp("^0x[0-9a-z]{41}")
+  if (eoaMatch.test(req.params.eoa)) {
+    res.send("Error MATCH")
   }
 
-  const Info = mitx.ContractTransfers(req.params.eoa);
+  const Info = mitx.TokenBalance(req.params.eoa);
   let info_json = await Info;
 
-  console.log(info_json)
+  // get all token balance in account.
+  const tokens = info_json.result
+
+  // compare smart contract address for balance
+  for(item in tokens){
+    if(tokens[item].tokenAddress === contract) {
+      balance = tokens[item].amount
+      break
+    }
+  }
+
+  result.account = req.params.eoa
+  result.balance = balance
+
+  res.send(result);
+})
+
+/**
+ * 계좌의 전송 기록을 가져온다.
+ */
+router.get('/:eoa/transfers', async function (req, res) {
+  // 주소 형식 체크
+  // '0x'로 시작하는지 확인하고
+  // 40자 길이의 숫자와 문자로 이루어진 주소값 확인
+  let eoaMatch = RegExp("^0x[0-9a-z]{41}")
+  if (eoaMatch.test(req.params.eoa)) {
+    res.send("Error MATCH")
+  }
+
+  const Info = mitx.AccountTransfers(req.params.eoa);
+  let info_json = await Info;
 
   res.send(info_json);
 })
 
 /**
- * KIP7 Token의 거래자들 리스트 출력
+ * API를 이용하여 지갑의 토큰을 전송한다.
  */
-router.get('/holders', async function(req, res) {
-  const response = mitx.ContractHolders(contract);
-  let result = await response;
-  let lists = result.result
-
-  const pwstr = mitx.createPW(32);
-
-  res.render('holders', {holders: lists, userPW:pwstr})
+router.post('/:eoa/transfer', async function(req, res) {
+  // Token을 전송하는 명령을 실행한다.
+  // Return 값에서 TxHash의 값을 획득한다.
+  const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa, req.query.receiver, "0x"+Number(req.query.amount).toString(16))
+  const r = await response;
+  res.send(r)
 });
 
 module.exports = router;

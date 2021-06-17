@@ -310,7 +310,7 @@ module.exports.AccountTxs = async function WebAccountTxs(address) {
  * @returns {Promise<AxiosResponse<any>>}
  * @constructor
  */
-module.exports.ContractTransferByEoa = function WebContractTx(eoa) {
+module.exports.AccountTransfers = function WebContractTx(eoa) {
     const url = "https://api-baobab.scope.klaytn.com/v1/accounts/"
     const request = url.concat(eoa, "/transfers?limit=100")
 
@@ -326,13 +326,27 @@ module.exports.ContractTransferByEoa = function WebContractTx(eoa) {
 /**
  * Token Holders 자료 수집 함수.
  * 테스트 안되어 있음.
- * @param address
+ * @param contract
  * @returns {Promise<AxiosResponse<any>>}
  * @constructor
  */
-module.exports.ContractHolders = async function WebContractHolders(address) {
+module.exports.ContractHolders = async function WebContractHolders(contract) {
     const url = "https://api-baobab.scope.klaytn.com/v1/tokens/";
-    const request = url.concat(address, "/holders");
+    const request = url.concat(contract, "/holders");
+
+    return axios.get(request)
+        .then(response => {
+            return response.data;
+        })
+        .catch(error => {
+            console.log(error)
+        })
+}
+
+module.exports.ContractTransfers = async function WebContractHolders(contract) {
+    const url = "https://api-baobab.scope.klaytn.com/v1/tokens/";
+    const request = url.concat(contract, "/transfers");
+    console.log(request)
 
     return axios.get(request)
         .then(response => {
