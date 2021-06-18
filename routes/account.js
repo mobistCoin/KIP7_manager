@@ -5,6 +5,7 @@ const fs = require('fs');
 const mitx = require('../libs/klaytn');
 const urlExistSync = require("url-exist-sync");
 const axios = require('axios');
+const mysql = require('mysql');
 
 /* JSON data read from JSON File */
 const jsonFile = fs.readFileSync('./platform.json', 'utf8');
@@ -13,12 +14,69 @@ jsonData = JSON.parse(jsonFile);
 /* Data store from JSON data to variables */
 const chainId = jsonData.chainid;
 const accessKeyId = jsonData.accessKeyId;
-const secretAccessKey = jsonData.secretAccessKey;
+const secretAccessKeyId = jsonData.secretAccessKey;
 const contract = jsonData.contract;
+const svc_id = jsonData.svcID;
+
+/* Database setting values from json file */
+const database = jsonData.database;
+const dbTable = jsonData.table;
+const dbUser = jsonData.dbuser;
+const dbPass = jsonData.dbpass;
+
+let accesskey = "";
+let secretaccesskey = "";
+
+let connection = mysql.createConnection({
+    host: 'localhost',
+    user: dbUser,
+    password: dbPass,
+    database: database
+});
+
+connection.connect();
+
+connection.query('SELECT * FROM svc', function (error, results, fields) {
+    if (error) {
+        console.log(error);
+    }
+    for (item in results) {
+        if (results[item].pid == svc_id) {
+            accesskey = results[item].accesskey;
+            secretaccesskey = results[item].secretaccesskey;
+        }
+    }
+});
+// Database 연결 끊기
+connection.close
 
 /* GET users listing. */
 router.get('/', function (req, res, next) {
     res.send('respond with a resource');
+});
+
+router.use((req, res, next) => {
+    // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
+    // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
+    const auth = {login: accesskey, password: secretaccesskey};
+    const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+    const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
+
+    if (login && password && login === auth.login && password === auth.password) {
+        return next();
+    }
+
+    res.set('WWW-Authenticate', 'Basic realm="401"');
+    res.status(401).send('Authentication required.');
+});
+
+/**
+ * 지갑을 생성하는 API 호출을 사용한다.
+ */
+router.get('/create', async function (req, res) {
+    const response = mitx.AccountCreate(chainId, accessKeyId, secretAccessKeyId);
+    let result = await response;
+    res.send(result);
 });
 
 /**
@@ -29,13 +87,20 @@ router.use('/:eoa', (req, res, next) => {
     // '0x'로 시작하는지 확인하고
     // 40자 길이의 숫자와 문자로 이루어진 주소값 확인
     let eoaMatch = RegExp("^0x[0-9a-z]{41}")
+    // 계좌 형식이 맞지 않은 경우 json으로 내용을 반환한다.
     if (eoaMatch.test(req.params.eoa)) {
-        return res.send("Error MATCH")
+        let result = new Object();
+        result.status = "fail"
+        result.descryption = "Address format is not valid."
+        return res.send(result);
     }
 
     return next()
 })
 
+/**
+ * 계좌 정보를 바탕으로 화면에 출력하는 기능이 있다.
+ */
 router.get('/:eoa', async function (req, res, next) {
     // 사용자의 현재 정보를 가져온다.
     const Info = mitx.TokenBalance(req.params.eoa);
@@ -123,7 +188,7 @@ router.get('/:eoa/transfers', async function (req, res) {
 router.post('/:eoa/transfer', async function (req, res) {
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
-    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa, req.query.receiver, "0x" + Number(req.query.amount).toString(16))
+    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa, req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     const r = await response;
     res.send(r)
 });
@@ -145,7 +210,7 @@ router.post('/:eoa/trans', async function (req, res) {
 
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
-    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa, req.query.receiver, "0x" + Number(req.query.amount).toString(16))
+    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa, req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     let re = await response;
 
     // 토큰 전송이 완료되어 전송 기록이 있는 txHash 값이 나오면 이를 검증함.
