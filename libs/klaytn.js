@@ -388,21 +388,7 @@ module.exports.TxHashInfo = async function WebTxHash(TxHash) {
     const request = url.concat(TxHash);
     let result
 
-    // do {
-    //     result = await urlExists(request, (_, exists) => {
-    //         console.log(exists)
-    //         return exists
-    //     })
-    //     console.log(result)
-    // } while (result != true)
     console.log(util.format("return exist: %s", result))
 
-    // return axios.get(request)
-    //     .then(response => {
-    //         return response;
-    //     })
-    //     .catch(error => {
-    //         console.log(error)
-    //     })
 }
 

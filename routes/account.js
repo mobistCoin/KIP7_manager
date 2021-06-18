@@ -21,15 +21,22 @@ router.get('/', function (req, res, next) {
     res.send('respond with a resource');
 });
 
-router.get('/:eoa', async function (req, res, next) {
+/**
+ * API가 동작하기전 요청에 따라 처리해야할 부분들에 대해서 체크하는 부분.
+ */
+router.use('/:eoa', (req, res, next) => {
     // 주소 형식 체크
     // '0x'로 시작하는지 확인하고
     // 40자 길이의 숫자와 문자로 이루어진 주소값 확인
     let eoaMatch = RegExp("^0x[0-9a-z]{41}")
     if (eoaMatch.test(req.params.eoa)) {
-        res.send("Error MATCH")
+        return res.send("Error MATCH")
     }
 
+    return next()
+})
+
+router.get('/:eoa', async function (req, res, next) {
     // 사용자의 현재 정보를 가져온다.
     const Info = mitx.TokenBalance(req.params.eoa);
     // 사용자의 토큰 거래 기록을 가져온다.
@@ -73,14 +80,6 @@ router.get('/:eoa/balance', async function (req, res) {
     let result = new Object();
     let balance = 0;
 
-    // 주소 형식 체크
-    // '0x'로 시작하는지 확인하고
-    // 40자 길이의 숫자와 문자로 이루어진 주소값 확인
-    let eoaMatch = RegExp("^0x[0-9a-z]{41}")
-    if (eoaMatch.test(req.params.eoa)) {
-        res.send("Error MATCH")
-    }
-
     const Info = mitx.TokenBalance(req.params.eoa);
     let info_json = await Info;
 
@@ -105,14 +104,6 @@ router.get('/:eoa/balance', async function (req, res) {
  * 계좌의 전송 기록을 가져온다.
  */
 router.get('/:eoa/transfers', async function (req, res) {
-    // 주소 형식 체크
-    // '0x'로 시작하는지 확인하고
-    // 40자 길이의 숫자와 문자로 이루어진 주소값 확인
-    let eoaMatch = RegExp("^0x[0-9a-z]{41}")
-    if (eoaMatch.test(req.params.eoa)) {
-        res.send("Error MATCH")
-    }
-
     const Info = mitx.AccountTransfers(req.params.eoa);
     let info_json = await Info;
 
@@ -150,19 +141,24 @@ router.post('/:eoa/transfer', async function (req, res) {
  }
  */
 router.post('/:eoa/trans', async function (req, res) {
+    let result = new Object()
+
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
     const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa, req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     let re = await response;
-    let result = new Object()
 
+    // 토큰 전송이 완료되어 전송 기록이 있는 txHash 값이 나오면 이를 검증함.
+    // 전송 성공 혹은 실패가 기록되는 부분에 대해서 확인하기 위한 부분임.
     let tx_url = "https://api-baobab.scope.klaytn.com/v1/txs/"
     let request = tx_url.concat(re.transactionHash)
+    // TxHash URL이 만들어지는데 시간이 걸리므로 txHash 값이 나올때까지 대기함.
     while (!urlExistSync(request)) {
         ;
     }
 
-    r = await axios.get(request)
+    // txHash URL이 만들어지면 상태 값을 가져옴.
+    let resultStatus = await axios.get(request)
         .then(response => {
             return response.data
         })
@@ -170,14 +166,18 @@ router.post('/:eoa/trans', async function (req, res) {
             console.log(error);
         });
 
-    if (r.result.txStatus === 1) {
+    // txHash 상태값이 1이면 성공, 9이면 실패를 설정한다.
+    if (resultStatus.result.txStatus === 1) {
         result.status = 'success'
     } else {
         result.status = 'fail'
     }
+    // API 사용자에게 전송 내용에 대해서 전달함.
     result.transactionHash = req.params.eoa
     result.to = req.query.receiver
     result.amount = req.query.amount
+
+    // JSON 형태의 데이터를 API의 결과값으로 전달함.
     res.send(result)
 });
 

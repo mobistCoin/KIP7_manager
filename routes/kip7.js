@@ -19,6 +19,18 @@ router.get('/', function(req, res, next) {
   res.send('respond with a resource');
 });
 
+router.use('/:eoa', (req, res, next) => {
+  let result = new Object()
+
+  if(req.params.eoa !== contract) {
+    result.status = "fail"
+    result.description = "contract address is not supported."
+    return res.send(result)
+  }
+
+  return next()
+})
+
 router.get('/:eoa', async function(req, res, next) {
   // EOA check pattern and length
   // start with '0x' and 40 size string.
