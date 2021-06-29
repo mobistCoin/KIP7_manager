@@ -1,0 +1,30 @@
+doctype html
+html
+    head
+        title=account
+        link(rel='stylesheet', href='/stylesheets/style.css')
+        script(type="text/javascript" src="/javascripts/m6.js")
+    body
+        h1 Account Page
+        table.table.table-striped
+            tr
+                th Account
+                th balance
+                th txs
+            tr
+                td #{account}
+                td #{balance}
+                td #{txs}
+        h1 거래 기록들.
+        table.table.table-striped
+            tr
+                th From
+                th To
+                th Value
+                th timestamp
+            each histo in history
+                tr
+                    td= histo.fromAddress
+                    td= histo.toAddress
+                    td.align-right #{histo.amount}
+                    td= histo.createdAt

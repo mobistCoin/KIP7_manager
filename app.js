@@ -6,6 +6,7 @@ const logger = require('morgan');
 
 const indexRouter = require('./routes/index');
 const kip7Router = require('./routes/kip7');
+const svcRouter = require('./routes/svc');
 const accountRouter = require('./routes/account');
 
 const app = express();
@@ -23,6 +24,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/kip7', kip7Router);
 app.use('/account', accountRouter);
+app.use('/svc', svcRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

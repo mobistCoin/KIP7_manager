@@ -1,8 +1,12 @@
+/**
+ * @fileoverview 이 파일은 KIP7 Smart Contract 관련 정보를 처리한다.
+ */
 const express = require('express');
 const router = express.Router();
+
 const util = require("util");
 const fs = require('fs');
-const mitx = require('../libs/klaytn');
+const mitx = require('libkct');
 
 /* JSON data read from JSON File */
 const jsonFile = fs.readFileSync('./platform.json', 'utf8');
@@ -30,6 +34,22 @@ router.use('/:eoa', (req, res, next) => {
 
   return next()
 })
+
+router.use((req, res, next) => {
+  // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
+  // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
+  const auth = {login: accessKeyId, password: secretAccessKey};
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
+
+  console.log(util.format("id: %s, check_id: %s", login, auth.login))
+  if (login && password && login === auth.login && password === auth.password) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="401"');
+  res.status(401).send('Authentication required.');
+});
 
 router.get('/:eoa', async function(req, res, next) {
   // EOA check pattern and length

@@ -2,10 +2,13 @@ const express = require('express');
 const router = express.Router();
 const util = require("util");
 const fs = require('fs');
-const mitx = require('../libs/klaytn');
+//const mitx = require('../libs/klaytn');
+const mitx = require('libkct')
+const utils = require('../libs/utils')
 const urlExistSync = require("url-exist-sync");
 const axios = require('axios');
 const mysql = require('mysql');
+const {v4: uuidv4} = require('uuid');
 
 /* JSON data read from JSON File */
 const jsonFile = fs.readFileSync('./platform.json', 'utf8');
@@ -18,57 +21,37 @@ const secretAccessKeyId = jsonData.secretAccessKey;
 const contract = jsonData.contract;
 const svc_id = jsonData.svcID;
 
-/* Database setting values from json file */
-const database = jsonData.database;
-const dbTable = jsonData.table;
-const dbUser = jsonData.dbuser;
-const dbPass = jsonData.dbpass;
-
-let accesskey = "";
-let secretaccesskey = "";
-
-let connection = mysql.createConnection({
-    host: 'localhost',
-    user: dbUser,
-    password: dbPass,
-    database: database
-});
-
-connection.connect();
-
-connection.query('SELECT * FROM svc', function (error, results, fields) {
-    if (error) {
-        console.log(error);
-    }
-    for (item in results) {
-        if (results[item].pid == svc_id) {
-            accesskey = results[item].accesskey;
-            secretaccesskey = results[item].secretaccesskey;
-        }
-    }
-});
-// Database 연결 끊기
-connection.close
-
 /* GET users listing. */
 router.get('/', function (req, res, next) {
     res.send('respond with a resource');
 });
 
-router.use((req, res, next) => {
-    // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
-    // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
-    const auth = {login: accesskey, password: secretaccesskey};
-    const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-    const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
-
-    if (login && password && login === auth.login && password === auth.password) {
-        return next();
-    }
-
-    res.set('WWW-Authenticate', 'Basic realm="401"');
-    res.status(401).send('Authentication required.');
-});
+// router.use((req, res, next) => {
+//     // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
+//     // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
+//     let accesskey = "";
+//     let secretaccesskey = "";
+//
+//     let connection = mysql.createConnection({
+//         host: 'localhost',
+//         user: jsonData.dbuser,
+//         password: jsonData.dbpass,
+//         database: jsonData.database
+//     });
+//
+//     dbValue = utils.GetSVC(connection, jsonData.svcID)
+//
+//     const auth = {login: dbValue[0], password: dbValue[1]};
+//     const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+//     const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
+//
+//     if (login && password && login === auth.login && password === auth.password) {
+//         return next();
+//     }
+//
+//     res.set('WWW-Authenticate', 'Basic realm="401"');
+//     res.status(401).send('Authentication required.');
+// });
 
 /**
  * 지갑을 생성하는 API 호출을 사용한다.
@@ -76,6 +59,13 @@ router.use((req, res, next) => {
 router.get('/create', async function (req, res) {
     const response = mitx.AccountCreate(chainId, accessKeyId, secretAccessKeyId);
     let result = await response;
+    res.send(result);
+});
+
+router.get('/createfeePayer', async function (req, res) {
+    const response = mitx.feePayerCreate(chainId, accessKeyId, secretAccessKeyId);
+    let result = await response;
+    console.log(result)
     res.send(result);
 });
 
@@ -188,10 +178,21 @@ router.get('/:eoa/transfers', async function (req, res) {
 router.post('/:eoa/transfer', async function (req, res) {
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
-    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa, req.query.receiver, "0x" + Number(req.query.amount).toString(16))
+    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa,
+        req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     const r = await response;
     res.send(r)
 });
+
+/**
+ * 수수료 대납용 API
+ */
+router.post('/:eoa/transferFee', async function (req, res) {
+    const response = mitx.TransferFTfee(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa,
+        req.body.receiver, "0x" + Number(req.body.amount).toString(16), req.body.feePayer)
+    const r = await response;
+    res.send(r)
+})
 
 /**
  * 토큰 전송용 API
@@ -210,7 +211,8 @@ router.post('/:eoa/trans', async function (req, res) {
 
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
-    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa, req.query.receiver, "0x" + Number(req.query.amount).toString(16))
+    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa,
+        req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     let re = await response;
 
     // 토큰 전송이 완료되어 전송 기록이 있는 txHash 값이 나오면 이를 검증함.
