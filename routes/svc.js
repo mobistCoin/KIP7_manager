@@ -9,6 +9,7 @@ const util = require("util");
 /* JSON data read from JSON File */
 const jsonFile = fs.readFileSync('./platform.json', 'utf8');
 jsonData = JSON.parse(jsonFile);
+const dateFormat = require('dateformat')
 
 /* Data store from JSON data to variables */
 const {chainId, accessKeyId, secretAccessKey: secretAccessKeyPw, contract} = jsonData.klaytn;
@@ -22,6 +23,8 @@ let connection = mysql.createConnection({
     password: dbPass,
     database: database
 });
+
+connection.connect();
 
 dbValue = klaytn.GetSVC(connection, svcID)
 
@@ -52,7 +55,7 @@ router.get('/create', async function(req, res) {
     result.id = klaytn.createID(24)
     result.password = klaytn.createPW(40)
 
-    res.send(result)
+    klaytn.SetSVC(res, connection, result.id, result.password)
 })
 
 module.exports = router;
