@@ -6,18 +6,49 @@ const router = express.Router();
 
 const util = require("util");
 const fs = require('fs');
-const mitx = require('libkct');
+const klaytn = require('libkct');
+const mysql = require('mysql');
 
 /* JSON data read from JSON File */
 const jsonFile = fs.readFileSync('./platform.json', 'utf8');
 jsonData = JSON.parse(jsonFile);
 
 /* Data store from JSON data to variables */
-const {chainId, accessKeyId, secretAccessKey, contract} = jsonData.klaytn;
+const {chainId, accessKeyId, secretAccessKeyPw, contract} = jsonData.klaytn;
+
+/* Database connection setting */
+const {database, dbTable, dbUser, dbPass, svcID} = jsonData.database;
+
+let connection = mysql.createConnection({
+  host: 'localhost',
+  user: dbUser,
+  password: dbPass,
+  database: database
+});
+
+dbValue = klaytn.GetSVC(connection, svcID)
+
+router.use((req, res, next) => {
+  // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
+  // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
+  // TODO: 로그인용 Database 구조 개발 PID <key> -> ID, PASSWORD
+  const auth = { login: dbValue[0], password: dbValue[1] };
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
+
+  console.log(util.format("save key: %s, pw: %s", dbValue[0], dbValue[1]))
+
+  if (login && password && login === auth.login && password === auth.password) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="401"');
+  res.status(401).send('Authentication required.');
+});
 
 /* GET users listing. */
 router.get('/', function(req, res, next) {
-  res.send('respond with a resource');
+  res.send('kip7 route.');
 });
 
 router.use('/:eoa', (req, res, next) => {
@@ -35,7 +66,7 @@ router.use('/:eoa', (req, res, next) => {
 router.use((req, res, next) => {
   // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
   // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
-  const auth = {login: accessKeyId, password: secretAccessKey};
+  const auth = {login: accessKeyId, password: secretAccessKeyPw};
   const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
   const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
 
@@ -57,9 +88,9 @@ router.get('/:eoa', async function(req, res, next) {
   }
 
   // 사용자의 현재 정보를 가져온다.
-  const Info = mitx.TokenBalance(req.params.eoa);
+  const Info = klaytn.TokenBalance(req.params.eoa);
   // 사용자의 토큰 거래 기록을 가져온다.
-  const CTBE = mitx.AccountTransfers(req.params.eoa)
+  const CTBE = klaytn.AccountTransfers(req.params.eoa)
   let balance
 
   // 지갑 정보를 가져와서 await 한다.
@@ -98,7 +129,7 @@ router.get('/:eoa/transfers', async function (req, res) {
     res.send("{\"status\": \"fail\"}")
   }
 
-  const Info = mitx.ContractTransfers(req.params.eoa);
+  const Info = klaytn.ContractTransfers(req.params.eoa);
   let info_json = await Info;
 
   console.log(info_json)
@@ -110,11 +141,11 @@ router.get('/:eoa/transfers', async function (req, res) {
  * KIP7 Token의 거래자들 리스트 출력
  */
 router.get('/holders', async function(req, res) {
-  const response = mitx.ContractHolders(contract);
+  const response = klaytn.ContractHolders(contract);
   let result = await response;
   let lists = result.result
 
-  const pwstr = mitx.createPW(32);
+  const pwstr = klaytn.createPW(32);
 
   res.render('holders', {holders: lists, userPW:pwstr})
 });

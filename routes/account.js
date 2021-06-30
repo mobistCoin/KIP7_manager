@@ -2,12 +2,10 @@ const express = require('express');
 const router = express.Router();
 const util = require("util");
 const fs = require('fs');
-//const mitx = require('../libs/klaytn');
-const mitx = require('libkct')
-const utils = require('../libs/utils')
 const urlExistSync = require("url-exist-sync");
 const axios = require('axios');
 const mysql = require('mysql');
+const klaytn = require('libkct')
 const {v4: uuidv4} = require('uuid');
 
 /* JSON data read from JSON File */
@@ -15,51 +13,53 @@ const jsonFile = fs.readFileSync('./platform.json', 'utf8');
 jsonData = JSON.parse(jsonFile);
 
 /* Data store from JSON data to variables */
-const {chainId, accessKeyId, secretAccessKey, contract} = jsonData.klaytn;
+const {chainId, accessKeyId, secretAccessKeyPw, contract} = jsonData.klaytn;
+/* Database connection setting */
+const {database, dbTable, dbUser, dbPass, svcID} = jsonData.database;
+
+let connection = mysql.createConnection({
+    host: 'localhost',
+    user: dbUser,
+    password: dbPass,
+    database: database
+});
+
+dbValue = klaytn.GetSVC(connection, svcID)
+
+router.use((req, res, next) => {
+    // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
+    // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
+    // TODO: 로그인용 Database 구조 개발 PID <key> -> ID, PASSWORD
+    const auth = { login: dbValue[0], password: dbValue[1] };
+    const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+    const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
+
+    console.log(util.format("save key: %s, pw: %s", dbValue[0], dbValue[1]))
+
+    if (login && password && login === auth.login && password === auth.password) {
+        return next();
+    }
+
+    res.set('WWW-Authenticate', 'Basic realm="401"');
+    res.status(401).send('Authentication required.');
+});
 
 /* GET users listing. */
 router.get('/', function (req, res, next) {
-    res.send('respond with a resource');
+    res.send('account route.');
 });
-
-// router.use((req, res, next) => {
-//     // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
-//     // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
-//     let accesskey = "";
-//     let secretaccesskey = "";
-//
-//     let connection = mysql.createConnection({
-//         host: 'localhost',
-//         user: jsonData.database.dbuser,
-//         password: jsonData.database.dbpass,
-//         database: jsonData.database.database
-//     });
-//
-//     dbValue = utils.GetSVC(connection, jsonData.database.svcID)
-//
-//     const auth = {login: dbValue[0], password: dbValue[1]};
-//     const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-//     const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
-//
-//     if (login && password && login === auth.login && password === auth.password) {
-//         return next();
-//     }
-//
-//     res.set('WWW-Authenticate', 'Basic realm="401"');
-//     res.status(401).send('Authentication required.');
-// });
 
 /**
  * 지갑을 생성하는 API 호출을 사용한다.
  */
 router.get('/create', async function (req, res) {
-    const response = mitx.AccountCreate(chainId, accessKeyId, secretAccessKey);
+    const response = klaytn.AccountCreate(chainId, accessKeyId, secretAccessKeyPw);
     let result = await response;
     res.send(result);
 });
 
 router.get('/createfeePayer', async function (req, res) {
-    const response = mitx.feePayerCreate(chainId, accessKeyId, secretAccessKey);
+    const response = klaytn.feePayerCreate(chainId, accessKeyId, secretAccessKeyPw);
     let result = await response;
     console.log(result)
     res.send(result);
@@ -89,9 +89,9 @@ router.use('/:eoa', (req, res, next) => {
  */
 router.get('/:eoa', async function (req, res, next) {
     // 사용자의 현재 정보를 가져온다.
-    const Info = mitx.TokenBalance(req.params.eoa);
+    const Info = klaytn.TokenBalance(req.params.eoa);
     // 사용자의 토큰 거래 기록을 가져온다.
-    const CTBE = mitx.AccountTransfers(req.params.eoa)
+    const CTBE = klaytn.AccountTransfers(req.params.eoa)
     let balance
 
     // 지갑 정보를 가져와서 await 한다.
@@ -131,7 +131,7 @@ router.get('/:eoa/balance', async function (req, res) {
     let result = new Object();
     let balance = 0;
 
-    const Info = mitx.TokenBalance(req.params.eoa);
+    const Info = klaytn.TokenBalance(req.params.eoa);
     let info_json = await Info;
 
     // get all token balance in account.
@@ -155,7 +155,7 @@ router.get('/:eoa/balance', async function (req, res) {
  * 계좌의 전송 기록을 가져온다.
  */
 router.get('/:eoa/transfers', async function (req, res) {
-    const Info = mitx.AccountTransfers(req.params.eoa);
+    const Info = klaytn.AccountTransfers(req.params.eoa);
     let info_json = await Info;
 
     res.send(info_json);
@@ -174,7 +174,7 @@ router.get('/:eoa/transfers', async function (req, res) {
 router.post('/:eoa/transfer', async function (req, res) {
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
-    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa,
+    const response = klaytn.TransferFT(chainId, accessKeyId, secretAccessKeyPw, contract, req.params.eoa,
         req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     const r = await response;
     res.send(r)
@@ -184,7 +184,7 @@ router.post('/:eoa/transfer', async function (req, res) {
  * 수수료 대납용 API
  */
 router.post('/:eoa/transferFee', async function (req, res) {
-    const response = mitx.TransferFTfee(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa,
+    const response = klaytn.TransferFTfee(chainId, accessKeyId, secretAccessKeyPw, contract, req.params.eoa,
         req.body.receiver, "0x" + Number(req.body.amount).toString(16), req.body.feePayer)
     const r = await response;
     res.send(r)
@@ -207,7 +207,7 @@ router.post('/:eoa/trans', async function (req, res) {
 
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
-    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa,
+    const response = klaytn.TransferFT(chainId, accessKeyId, secretAccessKeyPw, contract, req.params.eoa,
         req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     let re = await response;
 

@@ -17,14 +17,8 @@ module.exports.GetSVC = function (connection, svc_id) {
         secretaccesskey = results[0].secretaccesskey;
         console.log(accesskey)
         dbValue=[accesskey, secretaccesskey]
+        connection.close
     });
 
     return [accesskey, secretaccesskey]
-
-    // Database 연결 끊기
-    // connection.close
-    // console.log(accesskey)
-    // console.log(secretaccesskey)
-    //
-    // return [accesskey, secretaccesskey]
 }
