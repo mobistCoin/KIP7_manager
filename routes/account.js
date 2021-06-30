@@ -58,6 +58,9 @@ router.get('/create', async function (req, res) {
     res.send(result);
 });
 
+/**
+ * feePayer 생성 함수
+ */
 router.get('/createfeePayer', async function (req, res) {
     const response = klaytn.feePayerCreate(chainId, accessKeyId, secretAccessKeyPw);
     let result = await response;
@@ -121,7 +124,7 @@ router.get('/:eoa', async function (req, res, next) {
     // let balance = parseInt(balance_json.balance, 16) / 10 ** 18;
     // 사용자 정보를 pug로 렌더링하여 보여준다.
     // account pug 파일을 호출하여 출력한다.
-    res.render('kip7', {account: req.params.eoa, balance: balance, history: ctbe.result})
+    res.render('account', {account: req.params.eoa, balance: balance, history: ctbe.result})
 });
 
 /**
