@@ -9,10 +9,7 @@ const jsonFile = fs.readFileSync('./platform.json', 'utf8');
 jsonData = JSON.parse(jsonFile);
 
 /* Data store from JSON data to variables */
-const chainId = jsonData.chainid;
-const accessKeyId = jsonData.accessKeyId;
-const secretAccessKey = jsonData.secretAccessKey;
-const contract = jsonData.contract;
+const {chainId, accessKeyId, secretAccessKey, contract} = jsonData.klaytn;
 
 router.use((req, res, next) => {
     // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.

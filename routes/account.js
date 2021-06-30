@@ -15,11 +15,7 @@ const jsonFile = fs.readFileSync('./platform.json', 'utf8');
 jsonData = JSON.parse(jsonFile);
 
 /* Data store from JSON data to variables */
-const chainId = jsonData.chainid;
-const accessKeyId = jsonData.accessKeyId;
-const secretAccessKeyId = jsonData.secretAccessKey;
-const contract = jsonData.contract;
-const svc_id = jsonData.svcID;
+const {chainId, accessKeyId, secretAccessKey, contract} = jsonData.klaytn;
 
 /* GET users listing. */
 router.get('/', function (req, res, next) {
@@ -34,12 +30,12 @@ router.get('/', function (req, res, next) {
 //
 //     let connection = mysql.createConnection({
 //         host: 'localhost',
-//         user: jsonData.dbuser,
-//         password: jsonData.dbpass,
-//         database: jsonData.database
+//         user: jsonData.database.dbuser,
+//         password: jsonData.database.dbpass,
+//         database: jsonData.database.database
 //     });
 //
-//     dbValue = utils.GetSVC(connection, jsonData.svcID)
+//     dbValue = utils.GetSVC(connection, jsonData.database.svcID)
 //
 //     const auth = {login: dbValue[0], password: dbValue[1]};
 //     const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
@@ -57,13 +53,13 @@ router.get('/', function (req, res, next) {
  * 지갑을 생성하는 API 호출을 사용한다.
  */
 router.get('/create', async function (req, res) {
-    const response = mitx.AccountCreate(chainId, accessKeyId, secretAccessKeyId);
+    const response = mitx.AccountCreate(chainId, accessKeyId, secretAccessKey);
     let result = await response;
     res.send(result);
 });
 
 router.get('/createfeePayer', async function (req, res) {
-    const response = mitx.feePayerCreate(chainId, accessKeyId, secretAccessKeyId);
+    const response = mitx.feePayerCreate(chainId, accessKeyId, secretAccessKey);
     let result = await response;
     console.log(result)
     res.send(result);
@@ -178,7 +174,7 @@ router.get('/:eoa/transfers', async function (req, res) {
 router.post('/:eoa/transfer', async function (req, res) {
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
-    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa,
+    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa,
         req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     const r = await response;
     res.send(r)
@@ -188,7 +184,7 @@ router.post('/:eoa/transfer', async function (req, res) {
  * 수수료 대납용 API
  */
 router.post('/:eoa/transferFee', async function (req, res) {
-    const response = mitx.TransferFTfee(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa,
+    const response = mitx.TransferFTfee(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa,
         req.body.receiver, "0x" + Number(req.body.amount).toString(16), req.body.feePayer)
     const r = await response;
     res.send(r)
@@ -211,7 +207,7 @@ router.post('/:eoa/trans', async function (req, res) {
 
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
-    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKeyId, contract, req.params.eoa,
+    const response = mitx.TransferFT(chainId, accessKeyId, secretAccessKey, contract, req.params.eoa,
         req.query.receiver, "0x" + Number(req.query.amount).toString(16))
     let re = await response;
 

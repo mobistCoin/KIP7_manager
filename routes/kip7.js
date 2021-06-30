@@ -13,10 +13,7 @@ const jsonFile = fs.readFileSync('./platform.json', 'utf8');
 jsonData = JSON.parse(jsonFile);
 
 /* Data store from JSON data to variables */
-const chainId = jsonData.chainid;
-const accessKeyId = jsonData.accessKeyId;
-const secretAccessKey = jsonData.secretAccessKey;
-const contract = jsonData.contract;
+const {chainId, accessKeyId, secretAccessKey, contract} = jsonData.klaytn;
 
 /* GET users listing. */
 router.get('/', function(req, res, next) {
