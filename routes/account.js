@@ -34,8 +34,6 @@ router.use((req, res, next) => {
     const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
     const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
 
-    console.log(util.format("save key: %s, pw: %s", dbValue[0], dbValue[1]))
-
     if (login && password && login === auth.login && password === auth.password) {
         return next();
     }
@@ -78,7 +76,7 @@ router.use('/:eoa', (req, res, next) => {
     let eoaMatch = RegExp("^0x[0-9a-z]{41}")
     // 계좌 형식이 맞지 않은 경우 json으로 내용을 반환한다.
     if (eoaMatch.test(req.params.eoa)) {
-        let result = new Object();
+        let result = {}
         result.status = "fail"
         result.descryption = "Address format is not valid."
         return res.send(result);
@@ -206,7 +204,7 @@ router.post('/:eoa/transferFee', async function (req, res) {
  }
  */
 router.post('/:eoa/trans', async function (req, res) {
-    let result = new Object()
+    let result = {}
 
     // Token을 전송하는 명령을 실행한다.
     // Return 값에서 TxHash의 값을 획득한다.
