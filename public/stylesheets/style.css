@@ -10,3 +10,7 @@ a {
 .align-right {
   text-align: right;
 }
+
+table {
+  border: 1px solid #444444;
+}

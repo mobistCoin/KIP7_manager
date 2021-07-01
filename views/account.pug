@@ -5,7 +5,7 @@ html
         link(rel='stylesheet', href='/stylesheets/style.css')
     body
         h1 Account Page
-        table.table.table-striped
+        table(style='border:thin solid')
             tr
                 th Account
                 th balance
@@ -13,15 +13,16 @@ html
                 td #{account}
                 td #{balance}
 
-        h1 MITX 전송
+        h1 MITX 전송 (fee delegation)
         form(action='/account/' + account + '/transferFee' method='post')
-            p to:
-                input(type="text" name="receiver")
-            p amount:
-                input(type="text" name="amount")
-                input(type="hidden" name="feePayer" value="0xee2c36cddD42BD493c0c3A264d8956688300e1aD")
-            p
-                input(type="submit" id="transfer" value="실행")
+            table(style='width:400; border:thin solid')
+                tr
+                    td(style='width:150') to:
+                        input(type="text" name="receiver")
+                    td(style='width:150') amount:
+                        input(type="text" name="amount")
+                    td(style='width:100')
+                        input(type="submit" id="transfer" value="실행")
         h1 거래 기록들.
         table.table.table-striped
             tr
