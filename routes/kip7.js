@@ -51,46 +51,54 @@ router.get('/', function(req, res, next) {
   res.send('kip7 route.');
 });
 
-router.use('/:eoa', (req, res, next) => {
-  let result = new Object()
+/**
+ * API를 이용하여 Preset에 있는 형태로 전송 기록을 가져온다.
+ */
+router.post('/historyPreset', async function(req, res) {
+  console.log(util.format("body value: %s", req.body.preset))
+  const response = klaytn.historyPreset(chainId, accessKeyId, secretAccessKey, req.body.preset)
+  const r = await response;
+  res.send(r)
+})
 
-  if(req.params.eoa !== contract) {
+/**
+ * API가 동작하기전 조건을 체크하기 위한 middleware
+ */
+router.use('/:eoa', (req, res, next) => {
+  /**
+   * 주소 형식 체크
+   * '0x'로 시작하는지 확인하고 40자 길이의 숫자와 문자로 이루어진 주소값 확인
+   * @type {RegExp}
+   */
+  let eoaMatch = RegExp("^0x[0-9a-z]{41}")
+  /**
+   * 주소가 매칭되지 않는 경우 에러 반환
+   * 반환 값은 JSON 데이터
+   * {"status": "fail", "description": "Address format is not valid."}
+   */
+  if (eoaMatch.test(req.params.eoa)) {
+    /**
+     * @param {string} status 성공 및 실패에 대한 상태값을 설정
+     * @param {string} description 실패한 경우 사유를 설정
+     * @type {object}
+     */
+    let result = {}
     result.status = "fail"
-    result.description = "contract address is not supported."
-    return res.send(result)
+    result.description = "Address format is not valid."
+    return res.send(result);
   }
 
   return next()
 })
 
-router.use((req, res, next) => {
-  // DataBase에서 로그인을 위한 정보를 획득하여 값을 만들도록 한다.
-  // 로그인하는 서비스 플랫폼의 PID를 받아서 로그인용 ID/PASS를 설정하도록 한다.
-  const auth = {login: accessKeyId, password: secretAccessKeyPw};
-  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-  const [login, password] = new Buffer(b64auth, 'base64').toString().split(':');
-
-  console.log(util.format("id: %s, check_id: %s", login, auth.login))
-  if (login && password && login === auth.login && password === auth.password) {
-    return next();
-  }
-
-  res.set('WWW-Authenticate', 'Basic realm="401"');
-  res.status(401).send('Authentication required.');
-});
-
+/**
+ * KIP7 해당 Smart Contract 정보를 가져옴.
+ */
 router.get('/:eoa', async function(req, res, next) {
-  // EOA check pattern and length
-  // start with '0x' and 40 size string.
-  let eoaMatch = RegExp("^0x[0-9a-z]{41}")
-  if (eoaMatch.test(req.params.eoa)) {
-    res.send("Error MATCH")
-  }
-
   // 사용자의 현재 정보를 가져온다.
   const Info = klaytn.TokenBalance(req.params.eoa);
   // 사용자의 토큰 거래 기록을 가져온다.
-  const CTBE = klaytn.AccountTransfers(req.params.eoa)
+  const CTBE = klaytn.ContractTransfers(req.params.eoa)
   let balance
 
   // 지갑 정보를 가져와서 await 한다.
@@ -116,11 +124,15 @@ router.get('/:eoa', async function(req, res, next) {
     return el != null;
   })
 
+  const response = klaytn.ContractHolders(contract)
+  let result = await response
+  let lists = result.result
+
   // 계좌 잔액의 내용을 16진수에서 10진수로 변경한다.
   // let balance = parseInt(balance_json.balance, 16) / 10 ** 18;
   // 사용자 정보를 pug로 렌더링하여 보여준다.
   // account pug 파일을 호출하여 출력한다.
-  res.render('kip7', {account: req.params.eoa, balance: balance, history: ctbe.result})
+  res.render('kip7', {account: req.params.eoa, balance: balance, history: ctbe.result, holders: lists})
 });
 
 router.get('/:eoa/transfers', async function (req, res) {
@@ -145,9 +157,7 @@ router.get('/holders', async function(req, res) {
   let result = await response;
   let lists = result.result
 
-  const pwstr = klaytn.createPW(32);
-
-  res.render('holders', {holders: lists, userPW:pwstr})
+  res.send(lists)
 });
 
 module.exports = router;

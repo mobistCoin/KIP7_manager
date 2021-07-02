@@ -67,7 +67,7 @@ router.get('/createfeePayer', async function (req, res) {
 });
 
 /**
- * API가 동작하기전 요청에 따라 처리해야할 부분들에 대해서 체크하는 부분.
+ * API가 동작하기전 조건을 체크하기 위한 middleware
  */
 router.use('/:eoa', (req, res, next) => {
     /**

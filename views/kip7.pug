@@ -1,30 +1,41 @@
 doctype html
+- let total_token = 10000000000
+- let decimals = 1000000000000000000
+- let precision = 7
+
 html
     head
         title= account
         link(rel='stylesheet', href='/stylesheets/style.css')
-        script(type="text/javascript" src="/javascripts/m6.js")
     body
         h1 이 페이지는 API 테스트용 페이지입니다.
         p account information for #{account}
         p balance #{balance}
         h1 Contract history 조회
-        form(action='/account/historyPreset' method='post')
+        form(action='/kip7/historyPreset' method='post')
             p preset:
                 input(type="text" name="preset")
                 input(type="submit" value="조회")
-        h1 TEST
-            form
-                input(id="clickMe" type="button" value="Test")
-        h1 Token 전송 실행용
-        form(action='/account/'+ account +'/transfer' method='post')
-            p to:
-                input(type="text" name="sender")
-            p amount:
-                input(type="text" name="amount")
-                input(type="hidden" name="kind" value="ft")
-            p
-                input(type="button" id="transfer" value="실행")
+        h1 Holders
+        table.table.table-striped
+            //- 테이블의 헤더 부분
+            tr
+                th address
+                th Amount
+                th Share(%)
+                // th Timestamp
+            //- holders에서 holder의 리스트를 받아서 개별적인 holder의 내용을 출력한다.
+            each holder in holders
+                tr
+                    td
+                        - url = "./" + holder.address
+                        a(href="./" + url) #{holder.address}
+                    //- 정밀도 10의 18제곱이므로 10의 18제곱을 나누어준다.
+                    - let amount = Number(holder.amountHeld) / decimals
+                    td.align-right #{amount.toFixed(precision)}
+                    td.align-right #{(amount / total_token * 100).toFixed(precision)}
+                    // td.align-right #{holder.createdAt}
+
         h1 거래 기록들.
         table.table.table-striped
             tr
